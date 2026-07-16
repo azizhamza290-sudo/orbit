@@ -5,7 +5,7 @@
   "description": "Orbit — a free, open-source, modern team collaboration platform.",
   "license": "MIT",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "next dev",
