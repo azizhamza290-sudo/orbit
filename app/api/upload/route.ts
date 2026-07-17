@@ -6,85 +6,65 @@ import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
 import { randomToken } from "@/lib/utils";
 
-export const runtime = "nodejs";
-
-const MAX_SIZE = 25 * 1024 * 1024;
+const MAX_SIZE = 25 * 1024 * 1024; // 25MB
 
 const ALLOWED = new Set([
   "image/png",
   "image/jpeg",
   "image/gif",
   "image/webp",
-  "application/pdf",
+  "image/svg+xml",
+
   "video/mp4",
   "video/webm",
-  "text/plain",
-  "text/csv",
-  "application/zip",
-  "application/x-zip-compressed",
+
+  "application/pdf",
+
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+  "application/zip",
+  "application/x-zip-compressed",
+
+  "text/plain",
+  "text/csv",
 ]);
 
 export const POST = withErrorHandling(async (request: Request) => {
   const user = await requireUser();
 
-  const limit = rateLimit(`upload:${user.id}`, {
+  const { success } = rateLimit(`upload:${user.id}`, {
     limit: 20,
     windowMs: 60_000,
   });
 
-  if (!limit.success) {
-    return apiError(429, "Too many uploads");
+  if (!success) {
+    return apiError(429, "Too many uploads. Slow down.");
   }
 
+  const formData = await request.formData();
 
-  const form = await request.formData();
-
-  const file = form.get("file");
-
+  const file = formData.get("file");
 
   if (!(file instanceof File)) {
-    return apiError(400, "No file received");
+    return apiError(400, "No file provided");
   }
-
-
-  console.log("UPLOAD FILE:", {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-  });
-
 
   if (file.size > MAX_SIZE) {
-    return apiError(
-      413,
-      "File too large. Maximum size is 25MB"
-    );
+    return apiError(413, "File exceeds 25MB limit");
   }
-
 
   if (!ALLOWED.has(file.type)) {
-    return apiError(
-      415,
-      `File type not allowed: ${file.type}`
-    );
-  }
-
-
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return apiError(
-      500,
-      "Missing BLOB_READ_WRITE_TOKEN"
-    );
+    return apiError(415, `File type ${file.type} is not allowed`);
   }
 
 
   const safeName = file.name
     .replace(/[^\w.\-() ]/g, "_")
-    .slice(0,120);
+    .slice(0, 120);
 
 
   const blob = await put(
@@ -93,29 +73,28 @@ export const POST = withErrorHandling(async (request: Request) => {
     {
       access: "public",
       contentType: file.type,
+      addRandomSuffix: false,
     }
   );
 
 
   const attachment = await db.attachment.create({
-    data:{
-      uploaderId:user.id,
-      url:blob.url,
-      name:file.name.slice(0,200),
-      mimeType:file.type,
-      size:file.size,
-    }
+    data: {
+      uploaderId: user.id,
+      url: blob.url,
+      name: file.name.slice(0, 200),
+      mimeType: file.type,
+      size: file.size,
+    },
   });
 
 
   return NextResponse.json(
     {
       attachment,
-      url:blob.url
     },
     {
-      status:201
+      status: 201,
     }
   );
-
 });
