@@ -28,8 +28,8 @@ const ALLOWED = new Set([
 ]);
 
 /**
- * Upload files to Vercel Blob
- * and create Attachment record.
+ * Upload file to Vercel Blob
+ * and create attachment record.
  */
 export const POST = withErrorHandling(async (request: Request) => {
   const user = await requireUser();
@@ -46,7 +46,7 @@ export const POST = withErrorHandling(async (request: Request) => {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return apiError(
       500,
-      "Blob storage is not configured. Missing BLOB_READ_WRITE_TOKEN."
+      "Missing BLOB_READ_WRITE_TOKEN environment variable"
     );
   }
 
@@ -73,14 +73,25 @@ export const POST = withErrorHandling(async (request: Request) => {
     .replace(/[^\w.\-() ]/g, "_")
     .slice(0, 120);
 
+  console.log("UPLOAD START", {
+    userId: user.id,
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    hasToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+  });
+
   const blob = await put(
     `uploads/${user.id}/${randomToken(8)}-${safeName}`,
     file,
     {
       access: "public",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
       contentType: file.type,
     }
   );
+
+  console.log("BLOB UPLOADED:", blob.url);
 
   const attachment = await db.attachment.create({
     data: {
@@ -91,6 +102,8 @@ export const POST = withErrorHandling(async (request: Request) => {
       size: file.size,
     },
   });
+
+  console.log("ATTACHMENT CREATED:", attachment.id);
 
   return NextResponse.json(
     {
