@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { randomToken } from "@/lib/utils";
 
 const MAX_SIZE = 25 * 1024 * 1024; // 25 MB
+
 const ALLOWED = new Set([
   "image/png",
   "image/jpeg",
@@ -27,27 +28,59 @@ const ALLOWED = new Set([
 ]);
 
 /**
- * Upload a file to Vercel Blob and register an Attachment row.
- * The attachment is linked to a message when the message is sent
- * (via attachmentIds in the create-message payload).
+ * Upload files to Vercel Blob
+ * and create Attachment record.
  */
 export const POST = withErrorHandling(async (request: Request) => {
   const user = await requireUser();
 
-  const { success } = rateLimit(`upload:${user.id}`, { limit: 20, windowMs: 60_000 });
-  if (!success) return apiError(429, "Too many uploads. Slow down.");
+  const { success } = rateLimit(`upload:${user.id}`, {
+    limit: 20,
+    windowMs: 60_000,
+  });
+
+  if (!success) {
+    return apiError(429, "Too many uploads. Slow down.");
+  }
+
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return apiError(
+      500,
+      "Blob storage is not configured. Missing BLOB_READ_WRITE_TOKEN."
+    );
+  }
 
   const form = await request.formData();
-  const file = form.get("file");
-  if (!(file instanceof File)) return apiError(400, "No file provided");
-  if (file.size > MAX_SIZE) return apiError(413, "File exceeds the 25 MB limit");
-  if (!ALLOWED.has(file.type)) return apiError(415, `File type ${file.type} is not allowed`);
 
-  const safeName = file.name.replace(/[^\w.\-() ]/g, "_").slice(0, 120);
-  const blob = await put(`uploads/${user.id}/${randomToken(8)}-${safeName}`, file, {
-    access: "public",
-    contentType: file.type,
-  });
+  const file = form.get("file");
+
+  if (!(file instanceof File)) {
+    return apiError(400, "No file provided");
+  }
+
+  if (file.size > MAX_SIZE) {
+    return apiError(413, "File exceeds the 25 MB limit");
+  }
+
+  if (!ALLOWED.has(file.type)) {
+    return apiError(
+      415,
+      `File type ${file.type || "unknown"} is not allowed`
+    );
+  }
+
+  const safeName = file.name
+    .replace(/[^\w.\-() ]/g, "_")
+    .slice(0, 120);
+
+  const blob = await put(
+    `uploads/${user.id}/${randomToken(8)}-${safeName}`,
+    file,
+    {
+      access: "public",
+      contentType: file.type,
+    }
+  );
 
   const attachment = await db.attachment.create({
     data: {
@@ -59,5 +92,12 @@ export const POST = withErrorHandling(async (request: Request) => {
     },
   });
 
-  return NextResponse.json({ attachment }, { status: 201 });
+  return NextResponse.json(
+    {
+      attachment,
+    },
+    {
+      status: 201,
+    }
+  );
 });
