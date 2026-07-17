@@ -1,0 +1,357 @@
+// ─────────────────────────────────────────────────────────────
+// Orbit — Prisma schema
+// Conventions: UUID ids, createdAt/updatedAt audit fields on every
+// entity, soft delete via deletedAt, explicit indexes on hot paths.
+// ─────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// ─── Auth ────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  image         String?
+  banner        String?
+  bio           String?   @db.Text
+  timezone      String    @default("UTC")
+  language      String    @default("en")
+  socialLinks   Json      @default("[]")
+  status        UserStatus @default(OFFLINE)
+  statusMessage String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  accounts           Account[]
+  sessions           Session[]
+  memberships        WorkspaceMember[]
+  sentInvites        WorkspaceInvite[]     @relation("InviteCreator")
+  channels           ChannelMember[]
+  messages           Message[]
+  reactions          Reaction[]
+  readStates         ReadState[]
+  notifications      Notification[]        @relation("NotificationRecipient")
+  triggeredEvents    Notification[]        @relation("NotificationActor")
+  ownedWorkspaces    Workspace[]           @relation("WorkspaceOwner")
+  pinnedMessages     Message[]             @relation("MessagePinner")
+  conversationStates ConversationMember[]
+
+  @@index([email])
+}
+
+enum UserStatus {
+  ONLINE
+  AWAY
+  DND
+  OFFLINE
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Email-verification tokens (signup). `identifier` = email.
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Password-reset tokens.
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+// ─── Workspaces ──────────────────────────────────────────────
+
+model Workspace {
+  id          String  @id @default(uuid())
+  name        String
+  slug        String  @unique
+  description String? @db.Text
+  image       String?
+  ownerId     String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  owner     User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members   WorkspaceMember[]
+  channels  Channel[]
+  invites   WorkspaceInvite[]
+
+  @@index([ownerId])
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@index([workspaceId])
+}
+
+model WorkspaceInvite {
+  id          String        @id @default(uuid())
+  workspaceId String
+  email       String?
+  token       String        @unique
+  role        WorkspaceRole @default(MEMBER)
+  createdById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+// ─── Channels (public, private and DM) ───────────────────────
+
+enum ChannelType {
+  PUBLIC
+  PRIVATE
+  DM
+}
+
+model Channel {
+  id          String      @id @default(uuid())
+  workspaceId String
+  type        ChannelType @default(PUBLIC)
+  name        String? // null for DM channels
+  topic       String?   @db.Text
+  description String?   @db.Text
+  isArchived  Boolean     @default(false)
+  createdById String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   ChannelMember[]
+  messages  Message[]
+  readStates ReadState[]
+
+  @@index([workspaceId, type])
+  @@index([workspaceId, isArchived])
+}
+
+model ChannelMember {
+  id        String   @id @default(uuid())
+  channelId String
+  userId    String
+  lastReadAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId])
+  @@index([channelId])
+}
+
+// ─── Messages ────────────────────────────────────────────────
+
+model Message {
+  id        String  @id @default(uuid())
+  channelId String
+  authorId  String
+  content   String  @db.Text
+  parentId  String? // thread replies point at the root message
+
+  isPinned  Boolean   @default(false)
+  pinnedAt  DateTime?
+  pinnedById String?
+
+  editedAt  DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  channel   Channel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Message?   @relation("Thread", fields: [parentId], references: [id], onDelete: SetNull)
+  replies   Message[]  @relation("Thread")
+  pinnedBy  User?      @relation("MessagePinner", fields: [pinnedById], references: [id], onDelete: SetNull)
+  reactions Reaction[]
+  attachments Attachment[]
+
+  @@index([channelId, createdAt])
+  @@index([parentId, createdAt])
+  @@index([authorId])
+}
+
+model Reaction {
+  id        String  @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+model Attachment {
+  id        String  @id @default(uuid())
+  messageId String?
+  uploaderId String
+  url       String
+  name      String
+  mimeType  String
+  size      Int
+
+  createdAt DateTime @default(now())
+
+  message  Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([uploaderId])
+}
+
+// Per-user read cursor per channel (read receipts / unread counts).
+model ReadState {
+  id         String   @id @default(uuid())
+  channelId  String
+  userId     String
+  lastReadAt DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId])
+}
+
+// ─── Direct messages ─────────────────────────────────────────
+// A DM is a Channel of type DM with exactly two ChannelMembers.
+// ConversationMember keeps a per-user archive flag.
+
+model ConversationMember {
+  id         String   @id @default(uuid())
+  channelId  String
+  userId     String
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId])
+}
+
+// ─── Notifications ───────────────────────────────────────────
+
+enum NotificationType {
+  MENTION
+  REPLY
+  REACTION
+  INVITE
+  DM
+  SYSTEM
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  type        NotificationType
+  recipientId String
+  actorId     String?
+  workspaceId String?
+  channelId   String?
+  messageId   String?
+  preview     String?          @db.Text
+  readAt      DateTime?
+
+  createdAt DateTime @default(now())
+
+  recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, readAt])
+  @@index([recipientId, createdAt])
+}

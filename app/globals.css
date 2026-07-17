@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 99%;
+    --foreground: 240 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 20%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 94%;
+    --accent-foreground: 240 6% 15%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 88%;
+    --ring: 243 75% 59%;
+    --radius: 0.75rem;
+    --sidebar: 240 8% 97%;
+    --sidebar-foreground: 240 6% 20%;
+    --sidebar-accent: 240 6% 92%;
+    --sidebar-border: 240 6% 90%;
+  }
+
+  .dark {
+    --background: 230 17% 8%;
+    --foreground: 240 9% 93%;
+    --card: 230 15% 11%;
+    --card-foreground: 240 9% 93%;
+    --popover: 230 15% 10%;
+    --popover-foreground: 240 9% 93%;
+    --primary: 243 80% 66%;
+    --primary-foreground: 240 20% 99%;
+    --secondary: 230 12% 16%;
+    --secondary-foreground: 240 9% 90%;
+    --muted: 230 12% 15%;
+    --muted-foreground: 230 8% 62%;
+    --accent: 230 12% 17%;
+    --accent-foreground: 240 9% 92%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 230 11% 18%;
+    --input: 230 11% 22%;
+    --ring: 243 80% 66%;
+    --sidebar: 232 18% 7%;
+    --sidebar-foreground: 240 9% 88%;
+    --sidebar-accent: 230 13% 14%;
+    --sidebar-border: 230 11% 15%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+}
+
+@layer utilities {
+  /* Glassmorphism surfaces */
+  .glass {
+    @apply bg-white/70 dark:bg-white/[0.04] backdrop-blur-xl border border-black/5 dark:border-white/[0.06];
+  }
+  .glass-strong {
+    @apply bg-white/85 dark:bg-[#12141c]/85 backdrop-blur-2xl border border-black/5 dark:border-white/[0.08];
+  }
+
+  /* Subtle gradient brand text */
+  .text-gradient {
+    @apply bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 bg-clip-text text-transparent;
+  }
+
+  /* Pretty scrollbars */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-muted-foreground/25;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Message hover reveal */
+  .message-actions {
+    @apply opacity-0 transition-opacity duration-150;
+  }
+  .group:hover .message-actions,
+  .message-actions[data-open="true"] {
+    @apply opacity-100;
+  }
+}
+
+/* ── Markdown message body ─────────────────────────────── */
+.message-body {
+  @apply text-[15px] leading-relaxed break-words;
+}
+.message-body p {
+  @apply my-1 first:mt-0 last:mb-0;
+}
+.message-body a {
+  @apply text-primary underline underline-offset-2 hover:opacity-80;
+}
+.message-body code {
+  @apply rounded-md bg-muted px-1.5 py-0.5 font-mono text-[13px] text-foreground;
+}
+.message-body pre {
+  @apply relative my-2 overflow-x-auto rounded-xl border border-border bg-zinc-950 p-4 text-[13px] dark:bg-black/60;
+}
+.message-body pre code {
+  @apply bg-transparent p-0 text-zinc-100;
+}
+.message-body ul {
+  @apply my-1 list-disc pl-5;
+}
+.message-body ol {
+  @apply my-1 list-decimal pl-5;
+}
+.message-body blockquote {
+  @apply my-1 border-l-2 border-primary/50 pl-3 text-muted-foreground;
+}
+.message-body h1,
+.message-body h2,
+.message-body h3 {
+  @apply my-2 font-semibold;
+}
+.message-body table {
+  @apply my-2 w-full border-collapse text-sm;
+}
+.message-body th,
+.message-body td {
+  @apply border border-border px-3 py-1.5;
+}
+.message-body img {
+  @apply max-w-sm rounded-xl;
+}
+
+/* highlight.js theme bridge (works in both modes) */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in {
+  color: #c792ea;
+}
+.hljs-string,
+.hljs-attr {
+  color: #a5d6a7;
+}
+.hljs-number,
+.hljs-literal {
+  color: #f78c6c;
+}
+.hljs-comment {
+  color: #697098;
+  font-style: italic;
+}
+.hljs-title,
+.hljs-function {
+  color: #82aaff;
+}
+.hljs-variable,
+.hljs-template-variable {
+  color: #f07178;
+}
