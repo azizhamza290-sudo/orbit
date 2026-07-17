@@ -3,13 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { z } from "zod";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,25 +20,18 @@ export default function RegisterPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next");
-
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(registerSchema),
-  });
+  } = useForm<FormValues>({ resolver: zodResolver(registerSchema) });
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
 
     const res = await fetch("/api/register", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
     });
 
@@ -50,22 +41,11 @@ export default function RegisterPage() {
       return;
     }
 
-    const login = await signIn("credentials", {
+    await signIn("credentials", {
       email: values.email,
       password: values.password,
       redirect: false,
     });
-
-    if (login?.error) {
-      setServerError(login.error);
-      return;
-    }
-
-    // إذا جاء المستخدم من رابط دعوة نعيده إليه مباشرة
-    if (next) {
-      window.location.href = next;
-      return;
-    }
 
     setPendingEmail(values.email);
   };
@@ -92,9 +72,7 @@ export default function RegisterPage() {
         </p>
 
         <Button variant="gradient" className="mt-6 w-full" asChild>
-          <Link href={next || "/workspaces"}>
-            Continue to Orbit
-          </Link>
+          <Link href="/workspaces">Continue to Orbit</Link>
         </Button>
       </motion.div>
     );
@@ -120,36 +98,26 @@ export default function RegisterPage() {
       </div>
 
       <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-        <span className="h-px flex-1 bg-border" />
-        or sign up with email
+        <span className="h-px flex-1 bg-border" /> or sign up with email{" "}
         <span className="h-px flex-1 bg-border" />
       </div>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="space-y-4"
-        noValidate
-      >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div className="space-y-1.5">
           <Label htmlFor="name">Full name</Label>
-
           <Input
             id="name"
             placeholder="Ada Lovelace"
             autoComplete="name"
             {...register("name")}
           />
-
           {errors.name && (
-            <p className="text-xs text-destructive">
-              {errors.name.message}
-            </p>
+            <p className="text-xs text-destructive">{errors.name.message}</p>
           )}
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
-
           <Input
             id="email"
             type="email"
@@ -157,17 +125,13 @@ export default function RegisterPage() {
             autoComplete="email"
             {...register("email")}
           />
-
           {errors.email && (
-            <p className="text-xs text-destructive">
-              {errors.email.message}
-            </p>
+            <p className="text-xs text-destructive">{errors.email.message}</p>
           )}
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
-
           <Input
             id="password"
             type="password"
@@ -175,11 +139,8 @@ export default function RegisterPage() {
             autoComplete="new-password"
             {...register("password")}
           />
-
           {errors.password && (
-            <p className="text-xs text-destructive">
-              {errors.password.message}
-            </p>
+            <p className="text-xs text-destructive">{errors.password.message}</p>
           )}
         </div>
 
@@ -205,7 +166,7 @@ export default function RegisterPage() {
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link
-          href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
+          href="/login"
           className="font-medium text-primary hover:underline"
         >
           Sign in
