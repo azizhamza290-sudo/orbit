@@ -40,27 +40,24 @@ export const POST = withErrorHandling(async (request: Request) => {
   }
 
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    console.error("Missing BLOB_READ_WRITE_TOKEN");
-    return apiError(500, "Blob storage token missing");
+    console.error("BLOB_READ_WRITE_TOKEN is missing");
+    return apiError(500, "Blob token is missing");
   }
 
-  const formData = await request.formData();
+  const form = await request.formData();
 
-  const file = formData.get("file");
+  const file = form.get("file");
 
   if (!(file instanceof File)) {
     return apiError(400, "No file provided");
   }
 
   if (file.size > MAX_SIZE) {
-    return apiError(413, "File exceeds 25MB limit");
+    return apiError(413, "File exceeds the 25 MB limit");
   }
 
   if (!ALLOWED.has(file.type)) {
-    return apiError(
-      415,
-      `File type ${file.type} is not allowed`
-    );
+    return apiError(415, `File type ${file.type} is not allowed`);
   }
 
   try {
@@ -68,13 +65,19 @@ export const POST = withErrorHandling(async (request: Request) => {
       .replace(/[^\w.\-() ]/g, "_")
       .slice(0, 120);
 
+    console.log(
+      "Uploading blob:",
+      safeName,
+      "Token exists:",
+      !!process.env.BLOB_READ_WRITE_TOKEN
+    );
+
     const blob = await put(
       `uploads/${user.id}/${randomToken(8)}-${safeName}`,
       file,
       {
         access: "public",
         contentType: file.type,
-        token: process.env.BLOB_READ_WRITE_TOKEN,
       }
     );
 
@@ -97,13 +100,11 @@ export const POST = withErrorHandling(async (request: Request) => {
       }
     );
   } catch (error) {
-    console.error("BLOB UPLOAD ERROR:", error);
+    console.error("UPLOAD ERROR:", error);
 
     return apiError(
       500,
-      error instanceof Error
-        ? error.message
-        : "Upload failed"
+      error instanceof Error ? error.message : "Upload failed"
     );
   }
 });
