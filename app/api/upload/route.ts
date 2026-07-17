@@ -39,63 +39,71 @@ export const POST = withErrorHandling(async (request: Request) => {
     return apiError(429, "Too many uploads. Slow down.");
   }
 
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-
-  if (!token) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
     console.error("Missing BLOB_READ_WRITE_TOKEN");
-    return apiError(500, "Blob storage token is missing");
+    return apiError(500, "Blob storage token missing");
   }
 
-  const form = await request.formData();
+  const formData = await request.formData();
 
-  const file = form.get("file");
+  const file = formData.get("file");
 
   if (!(file instanceof File)) {
     return apiError(400, "No file provided");
   }
 
   if (file.size > MAX_SIZE) {
-    return apiError(413, "File exceeds 25 MB limit");
+    return apiError(413, "File exceeds 25MB limit");
   }
 
   if (!ALLOWED.has(file.type)) {
-    return apiError(415, `File type ${file.type} is not allowed`);
+    return apiError(
+      415,
+      `File type ${file.type} is not allowed`
+    );
   }
 
+  try {
+    const safeName = file.name
+      .replace(/[^\w.\-() ]/g, "_")
+      .slice(0, 120);
 
-  const safeName = file.name
-    .replace(/[^\w.\-() ]/g, "_")
-    .slice(0, 120);
+    const blob = await put(
+      `uploads/${user.id}/${randomToken(8)}-${safeName}`,
+      file,
+      {
+        access: "public",
+        contentType: file.type,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      }
+    );
 
+    const attachment = await db.attachment.create({
+      data: {
+        uploaderId: user.id,
+        url: blob.url,
+        name: file.name.slice(0, 200),
+        mimeType: file.type,
+        size: file.size,
+      },
+    });
 
-  const blob = await put(
-    `uploads/${user.id}/${randomToken(8)}-${safeName}`,
-    file,
-    {
-      access: "public",
-      contentType: file.type,
-      token,
-    }
-  );
+    return NextResponse.json(
+      {
+        attachment,
+      },
+      {
+        status: 201,
+      }
+    );
+  } catch (error) {
+    console.error("BLOB UPLOAD ERROR:", error);
 
-
-  const attachment = await db.attachment.create({
-    data: {
-      uploaderId: user.id,
-      url: blob.url,
-      name: file.name.slice(0, 200),
-      mimeType: file.type,
-      size: file.size,
-    },
-  });
-
-
-  return NextResponse.json(
-    {
-      attachment,
-    },
-    {
-      status: 201,
-    }
-  );
+    return apiError(
+      500,
+      error instanceof Error
+        ? error.message
+        : "Upload failed"
+    );
+  }
 });
