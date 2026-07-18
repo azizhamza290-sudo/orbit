@@ -3,19 +3,18 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Sparkles, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { OrbitAiChat } from "./orbit-ai-chat";
 
 /**
- * Global AI assistant sidebar for Orbit.
- *
- * Mount this once near the root of the app shell (e.g. workspace-shell.tsx)
- * so it's available on every authenticated page. It manages its own
- * open/close state and does not require any props.
+ * Global AI assistant sidebar for Orbit. Mounted once in the
+ * authenticated app shell so it's available on every workspace page.
+ * Manages its own open/close state — no props required.
  */
 export function OrbitAiSidebar() {
   const [open, setOpen] = useState(false);
 
-  // Lock body scroll on mobile when the sidebar is open full-screen.
+  // Lock body scroll while the panel covers the full viewport on mobile.
   useEffect(() => {
     if (!open) return;
     const original = document.body.style.overflow;
@@ -25,7 +24,6 @@ export function OrbitAiSidebar() {
     };
   }, [open]);
 
-  // Close on Escape for keyboard users.
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -44,7 +42,7 @@ export function OrbitAiSidebar() {
         animate={{ opacity: open ? 0 : 1, scale: open ? 0.8 : 1 }}
         transition={{ duration: 0.2 }}
         style={{ pointerEvents: open ? "none" : "auto" }}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:opacity-90 active:scale-95 transition-transform"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-95 transition-transform"
       >
         <Sparkles className="h-6 w-6" />
       </motion.button>
@@ -79,14 +77,15 @@ export function OrbitAiSidebar() {
                   </div>
                   <span className="text-sm font-semibold">Orbit AI</span>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => setOpen(false)}
                   aria-label="Close Orbit AI assistant"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground dark:hover:bg-neutral-800"
                 >
                   <X className="h-4 w-4" />
-                </button>
+                </Button>
               </div>
 
               <div className="min-h-0 flex-1">
@@ -99,4 +98,3 @@ export function OrbitAiSidebar() {
     </>
   );
 }
-

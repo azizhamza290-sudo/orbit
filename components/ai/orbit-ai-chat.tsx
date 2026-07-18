@@ -12,6 +12,10 @@ const EMPTY_STATE_PROMPTS = [
   "Generate project ideas",
 ];
 
+// Kept small: only recent turns are sent as short-term memory, capping
+// request size and keeping older context out of every follow-up call.
+const MAX_HISTORY_TURNS = 10;
+
 function createId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -19,14 +23,14 @@ function createId() {
 }
 
 /**
- * Conversation state lives in React state only, per requirements.
+ * Conversation state lives in React state only for now — no persistence.
  *
  * To add persistence later:
- *  - swap `useState<OrbitAiMessage[]>` for an SWR/useSWR-backed fetch of
- *    the conversation from a future `/api/ai/conversations/:id` route
+ *  - swap `useState<OrbitAiMessage[]>` for an SWR-backed fetch of a
+ *    future `/api/ai/conversations/:id` route
  *  - replace the local `setMessages` appends below with mutate() calls
- *  - the `OrbitAiMessage` shape already matches what a Prisma model would
- *    look like (id, role, content, createdAt), so no shape changes needed
+ *  - `OrbitAiMessage` already matches the shape a Prisma `AiMessage`
+ *    model would take (id, role, content, createdAt)
  */
 export function OrbitAiChat() {
   const [messages, setMessages] = useState<OrbitAiMessage[]>([]);
@@ -49,6 +53,11 @@ export function OrbitAiChat() {
 
       setError(null);
 
+      const history = messages
+        .filter((m) => m.status !== "error")
+        .slice(-MAX_HISTORY_TURNS)
+        .map((m) => ({ role: m.role, content: m.content }));
+
       const userMessage: OrbitAiMessage = {
         id: createId(),
         role: "user",
@@ -65,11 +74,12 @@ export function OrbitAiChat() {
         const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: content }),
+          body: JSON.stringify({ message: content, history }),
         });
 
         if (!res.ok) {
-          throw new Error(`Request failed with status ${res.status}`);
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.error || `Request failed with status ${res.status}`);
         }
 
         const data: { reply: string } = await res.json();
@@ -84,14 +94,14 @@ export function OrbitAiChat() {
 
         setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
-        setError("Something went wrong. Please try again.");
+        const message = err instanceof Error ? err.message : "Something went wrong.";
+        setError(message);
         setMessages((prev) => [
           ...prev,
           {
             id: createId(),
             role: "assistant",
-            content:
-              "I couldn't get a response right now. Please try again in a moment.",
+            content: "I couldn't get a response right now. Please try again in a moment.",
             createdAt: new Date().toISOString(),
             status: "error",
           },
@@ -100,7 +110,7 @@ export function OrbitAiChat() {
         setIsLoading(false);
       }
     },
-    [isLoading]
+    [isLoading, messages],
   );
 
   const hasMessages = messages.length > 0;
@@ -127,9 +137,7 @@ export function OrbitAiChat() {
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium">How can I help you today?</p>
-              <p className="text-xs text-muted-foreground">
-                Ask a question or try one of these
-              </p>
+              <p className="text-xs text-muted-foreground">Ask a question or try one of these</p>
             </div>
             <div className="grid w-full gap-2">
               {EMPTY_STATE_PROMPTS.map((prompt) => (
@@ -148,9 +156,7 @@ export function OrbitAiChat() {
       </div>
 
       <div className="border-t border-border p-3">
-        {error && (
-          <p className="mb-2 px-1 text-xs text-destructive">{error}</p>
-        )}
+        {error && <p className="mb-2 px-1 text-xs text-destructive">{error}</p>}
         <OrbitAiInput
           value={input}
           onChange={setInput}

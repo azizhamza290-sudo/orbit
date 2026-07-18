@@ -1,14 +1,9 @@
 "use client";
 
-import {
-  KeyboardEvent,
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-} from "react";
+import { KeyboardEvent, forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { ArrowUp, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 interface OrbitAiInputProps {
   value: string;
@@ -24,7 +19,7 @@ const MAX_TEXTAREA_HEIGHT = 160;
 export const OrbitAiInput = forwardRef<HTMLTextAreaElement, OrbitAiInputProps>(
   function OrbitAiInput(
     { value, onChange, onSend, disabled, isLoading, placeholder },
-    forwardedRef
+    forwardedRef,
   ) {
     const innerRef = useRef<HTMLTextAreaElement>(null);
     useImperativeHandle(forwardedRef, () => innerRef.current as HTMLTextAreaElement);
@@ -32,7 +27,7 @@ export const OrbitAiInput = forwardRef<HTMLTextAreaElement, OrbitAiInputProps>(
     useEffect(() => {
       const el = innerRef.current;
       if (!el) return;
-      el.style.height = "0px";
+      el.style.height = "auto";
       el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
     }, [value]);
 
@@ -48,8 +43,8 @@ export const OrbitAiInput = forwardRef<HTMLTextAreaElement, OrbitAiInputProps>(
     const canSend = !disabled && value.trim().length > 0;
 
     return (
-      <div className="flex items-end gap-2 rounded-2xl border border-border bg-background p-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/30 dark:bg-neutral-900">
-        <textarea
+      <div className="flex items-end gap-2 rounded-xl border border-input bg-background p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring">
+        <Textarea
           ref={innerRef}
           rows={1}
           value={value}
@@ -57,27 +52,19 @@ export const OrbitAiInput = forwardRef<HTMLTextAreaElement, OrbitAiInputProps>(
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder={placeholder ?? "Ask Orbit AI anything..."}
-          className="max-h-[160px] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
+          className="min-h-0 max-h-[160px] flex-1 resize-none border-0 px-2 py-1.5 shadow-none focus-visible:ring-0"
         />
-        <button
+        <Button
           type="button"
+          size="icon-sm"
           onClick={onSend}
           disabled={!canSend}
           aria-label="Send message"
-          className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
-            canSend
-              ? "bg-primary text-primary-foreground hover:opacity-90"
-              : "bg-muted text-muted-foreground cursor-not-allowed dark:bg-neutral-800"
-          )}
+          className="mb-0.5 shrink-0"
         >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ArrowUp className="h-4 w-4" />
-          )}
-        </button>
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
+        </Button>
       </div>
     );
-  }
+  },
 );
