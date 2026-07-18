@@ -122,6 +122,31 @@ export const searchSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
+// ─── AI ──────────────────────────────────────────────────────
+
+export const aiContextSchema = z.object({
+  workspaceId: z.string().uuid().optional(),
+  channelId: z.string().uuid().optional(),
+  conversationId: z.string().uuid().optional(),
+});
+
+export const aiChatSchema = z.object({
+  message: z.string().min(1, "Message can't be empty").max(4000),
+  context: aiContextSchema.optional(),
+  // Prior turns from the same session, for short-term memory. Role is
+  // restricted to user/assistant so a client can never inject a system
+  // message into the prompt.
+  history: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().max(4000),
+      }),
+    )
+    .max(20)
+    .optional(),
+});
+
 // ─── Types ───────────────────────────────────────────────────
 
 export type RegisterInput = z.infer<typeof registerSchema>;
