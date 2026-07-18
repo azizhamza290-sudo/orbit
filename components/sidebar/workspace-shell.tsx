@@ -1,5 +1,5 @@
 "use client";
- 
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -44,13 +44,13 @@ import { usePusherChannel } from "@/hooks/use-pusher-channel";
 import { usePresence } from "@/hooks/use-presence";
 import { pusherChannels, pusherEvents } from "@/lib/pusher";
 import type { ChannelWithMeta, WorkspaceWithRole } from "@/types";
- 
+
 interface ShellProps {
   workspace: WorkspaceWithRole;
   currentUser: { id: string; name: string; email: string; image: string | null };
   children: React.ReactNode;
 }
- 
+
 export function WorkspaceShell({ workspace, currentUser, children }: ShellProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -59,22 +59,22 @@ export function WorkspaceShell({ workspace, currentUser, children }: ShellProps)
   const [inviteOpen, setInviteOpen] = useState(false);
   const [dmOpen, setDmOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
- 
+
   const { data: channelsData, mutate: mutateChannels } = useSWR<{
     channels: ChannelWithMeta[];
   }>(`/api/workspaces/${workspace.id}/channels`, fetcher);
- 
+
   const { data: dmsData, mutate: mutateDms } = useSWR<{
     conversations: Array<ChannelWithMeta & { otherMember: { id: string; name: string; image: string | null } | null }>;
   }>(`/api/workspaces/${workspace.id}/conversations`, fetcher);
- 
+
   const { data: workspacesData } = useSWR<{ workspaces: WorkspaceWithRole[] }>(
     "/api/workspaces",
     fetcher,
   );
- 
+
   const onlineIds = usePresence(workspace.id);
- 
+
   // Realtime sidebar: new messages bump unread badges; channel CRUD refreshes lists.
   usePusherChannel(pusherChannels.workspace(workspace.id), {
     [pusherEvents.messageNew]: (() => {
@@ -85,16 +85,16 @@ export function WorkspaceShell({ workspace, currentUser, children }: ShellProps)
       mutateChannels();
     }) as never,
   });
- 
+
   const channels = useMemo(
     () => (channelsData?.channels ?? []).filter((c) => c.type !== "DM"),
     [channelsData],
   );
   const dms = dmsData?.conversations ?? [];
   const activeChannelId = pathname.split("/").pop();
- 
+
   const canManage = ["OWNER", "ADMIN", "MODERATOR"].includes(workspace.role);
- 
+
   const sidebar = (
     <div className="flex h-full w-64 flex-col bg-sidebar text-sidebar-foreground">
       {/* Workspace switcher */}
@@ -128,12 +128,12 @@ export function WorkspaceShell({ workspace, currentUser, children }: ShellProps)
         </DropdownMenu>
         <NotificationsBell userId={currentUser.id} />
       </div>
- 
+
       {/* Search */}
       <div className="p-3 pb-1">
         <CommandPalette workspaceId={workspace.id} />
       </div>
- 
+
       <ScrollArea className="flex-1 px-3 scrollbar-thin">
         {/* Channels */}
         <div className="mt-3">
@@ -194,7 +194,7 @@ export function WorkspaceShell({ workspace, currentUser, children }: ShellProps)
             <Plus className="h-3.5 w-3.5" /> Add channel
           </button>
         </div>
- 
+
         {/* Direct messages */}
         <div className="mt-5">
           <div className="group flex items-center justify-between px-2 py-1">
@@ -250,7 +250,7 @@ export function WorkspaceShell({ workspace, currentUser, children }: ShellProps)
             })
           )}
         </div>
- 
+
         {/* Workspace pages */}
         <div className="mt-5 pb-4">
           <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -289,7 +289,7 @@ export function WorkspaceShell({ workspace, currentUser, children }: ShellProps)
           </button>
         </div>
       </ScrollArea>
- 
+
       {/* User footer */}
       <div className="border-t border-sidebar-border p-3">
         <DropdownMenu>
@@ -327,7 +327,7 @@ export function WorkspaceShell({ workspace, currentUser, children }: ShellProps)
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
- 
+
       <CreateChannelDialog
         workspaceId={workspace.id}
         open={createChannelOpen}
@@ -342,12 +342,12 @@ export function WorkspaceShell({ workspace, currentUser, children }: ShellProps)
       />
     </div>
   );
- 
+
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
       {/* Desktop sidebar */}
       <aside className="hidden md:block">{sidebar}</aside>
- 
+
       {/* Mobile sidebar */}
       {mobileNavOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
@@ -360,7 +360,7 @@ export function WorkspaceShell({ workspace, currentUser, children }: ShellProps)
           </aside>
         </div>
       )}
- 
+
       {/* Main content */}
       <main className="flex min-w-0 flex-1 flex-col">
         {/* Mobile top bar */}
@@ -377,4 +377,3 @@ export function WorkspaceShell({ workspace, currentUser, children }: ShellProps)
     </div>
   );
 }
- 
